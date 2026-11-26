@@ -6,6 +6,9 @@ import logging
 import os
 import random
 import sys
+import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -81,6 +84,8 @@ class RunConfig(BaseModel):
     seed: int = Field(default=42, ge=0)
     experiment_name: str = "serbian-sentiment"
     output_dir: Path = Path("artifacts")
+    tracking_uri: str = "sqlite:///mlflow.db"
+    mlflow_artifact_root: Path = Path("mlruns")
     data: DataPaths = Field(default_factory=DataPaths)
     params: dict[str, Any] = Field(default_factory=dict)
 
@@ -119,3 +124,31 @@ def save_config(config: RunConfig, path: str | Path) -> Path:
     with path.open("w", encoding="utf-8") as f:
         yaml.safe_dump(config.model_dump(mode="json"), f, sort_keys=False, allow_unicode=True)
     return path
+
+
+@contextmanager
+def timer() -> Iterator[dict[str, float]]:
+    """Measure wall-clock time of a block.
+
+    Example:
+        >>> with timer() as t:
+        ...     do_work()
+        >>> t["seconds"]
+
+    Yields:
+        Dict whose ``"seconds"`` key is filled in when the block exits.
+    """
+    result: dict[str, float] = {"seconds": float("nan")}
+    start = time.perf_counter()
+    try:
+        yield result
+    finally:
+        result["seconds"] = time.perf_counter() - start
+
+
+def path_size_mb(path: str | Path) -> float:
+    """Return the size of a file, or the total size of a directory, in megabytes."""
+    path = Path(path)
+    if path.is_file():
+        return path.stat().st_size / 1e6
+    return sum(p.stat().st_size for p in path.rglob("*") if p.is_file()) / 1e6

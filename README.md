@@ -39,6 +39,15 @@ The project uses **SerbMR** (Serbian Movie Review Dataset). Datasets are not dow
 
 Set `variant: 3C` in `configs/data.yaml` for three-class classification.
 
+### Training
+
+```bash
+make train-classical   # TF-IDF + LR / linear SVM / Naive Bayes, Optuna search (~4 min on CPU)
+make mlflow-ui         # browse parameters, metrics and artifacts at http://127.0.0.1:5000
+```
+
+Validation results and the most influential words: [`reports/classical/validation.md`](reports/classical/validation.md). Models are saved to `artifacts/` (not tracked by git).
+
 ### Exploratory data analysis
 
 `make eda` generates [`reports/eda/eda_report.md`](reports/eda/eda_report.md) with figures and data-driven insights; [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb) shows the same analysis interactively (`make notebooks` re-executes it).

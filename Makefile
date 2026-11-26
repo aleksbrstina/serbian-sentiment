@@ -2,7 +2,7 @@
 UV ?= uv
 RUN := $(UV) run
 
-.PHONY: help install install-all lint format test test-cov pre-commit prepare-data eda notebooks mlflow-ui clean
+.PHONY: help install install-all lint format test test-cov pre-commit prepare-data eda train-classical notebooks mlflow-ui clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -36,11 +36,14 @@ prepare-data: ## Normalize, clean and split raw data (configs/data.yaml)
 eda: ## Generate the EDA report and figures in reports/eda
 	$(RUN) python scripts/run_eda.py --data-dir data/processed --out-dir reports/eda
 
+train-classical: ## Tune, train and log the TF-IDF models (configs/classical.yaml)
+	$(RUN) python scripts/train.py --config configs/classical.yaml
+
 notebooks: ## Execute notebooks in place (requires processed data)
 	$(RUN) python scripts/execute_notebooks.py notebooks/01_eda.ipynb
 
 mlflow-ui: ## Launch the local MLflow UI on http://127.0.0.1:5000
-	$(RUN) mlflow ui --backend-store-uri ./mlruns
+	$(RUN) mlflow ui --backend-store-uri sqlite:///mlflow.db
 
 clean: ## Remove caches and build outputs (keeps data, mlruns and artifacts)
 	rm -rf .pytest_cache .ruff_cache .coverage htmlcov build dist

@@ -1,11 +1,27 @@
-# Run configuration for the classical model.
-# Model-specific parameters will be added under `params` when the model is implemented.
+# Classical models: TF-IDF (word + char n-grams) + LR / linear SVM / Complement NB.
+# Rationale for the search space: docs/decisions.md (Phase 4).
 model: classical
 seed: 42
 experiment_name: serbian-sentiment
 output_dir: artifacts/classical
+tracking_uri: sqlite:///mlflow.db
+mlflow_artifact_root: mlruns
 data:
   train: data/processed/train.parquet
   val: data/processed/val.parquet
   test: data/processed/test.parquet
-params: {}
+params:
+  classifiers: [logreg, linear_svm, naive_bayes]
+  n_trials: 30                 # per classifier
+  search_space:
+    word_ngram_max: [1, 2]     # unigrams, or unigrams + bigrams
+    char_ngrams: ["none", "2-5", "3-5"]  # char_wb n-grams inside word boundaries
+    min_df: [1, 2, 3]
+    sublinear_tf: [true, false]
+    logreg_c: [0.01, 100.0]    # log-uniform
+    svm_c: [0.001, 100.0]      # log-uniform; widened after C hit the old upper bound (10)
+    nb_alpha: [0.001, 1.0]     # log-uniform
+  svm_calibration_folds: 5     # Platt scaling so the SVM exposes probabilities
+  max_df: 1.0
+  top_k: 20                    # influential words exported per class
+  latency_samples: 50

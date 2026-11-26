@@ -7,8 +7,10 @@ not require changes elsewhere.
 
 from __future__ import annotations
 
+import json
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from pathlib import Path
 
 import numpy as np
 
@@ -49,3 +51,28 @@ class Predictor(ABC):
             return []
         proba = self.predict_proba(texts)
         return [self.labels[i] for i in np.argmax(proba, axis=1)]
+
+
+def load_predictor(directory: str | Path) -> Predictor:
+    """Load any saved model from its directory, dispatching on ``metadata.json``.
+
+    Args:
+        directory: Directory written by a model's ``save`` method.
+
+    Returns:
+        The loaded predictor.
+
+    Raises:
+        FileNotFoundError: If ``metadata.json`` is missing.
+        ValueError: If the model type is unknown.
+    """
+    directory = Path(directory)
+    meta_path = directory / "metadata.json"
+    if not meta_path.exists():
+        raise FileNotFoundError(f"No metadata.json in {directory}; train the model first.")
+    model_type = json.loads(meta_path.read_text(encoding="utf-8")).get("type")
+    if model_type == "classical":
+        from sentiment.models.classical import ClassicalPredictor
+
+        return ClassicalPredictor.load(directory)
+    raise ValueError(f"Unknown model type {model_type!r} in {meta_path}")

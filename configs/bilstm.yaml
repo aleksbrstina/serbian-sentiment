@@ -4,6 +4,8 @@ model: bilstm
 seed: 42
 experiment_name: serbian-sentiment
 output_dir: artifacts/bilstm
+tracking_uri: sqlite:///mlflow.db
+mlflow_artifact_root: mlruns
 data:
   train: data/processed/train.parquet
   val: data/processed/val.parquet

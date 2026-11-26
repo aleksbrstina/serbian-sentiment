@@ -52,3 +52,27 @@ Short rationale for non-trivial choices. Newest phase at the bottom.
 - *No leakage via explicit scores.* "x/10" appears in <1% of reviews, so it is not worth masking.
 
 **Notebook generated from the same functions as the report, and executed by `make notebooks`.** The notebook is a view on `sentiment.eda`, not a second implementation, so its numbers are always identical to `reports/eda/eda_report.md`. It is committed with outputs so the plots are visible on GitHub without running anything.
+
+## Phase 4: Classical models
+
+**Features: word TF-IDF + character n-grams (`char_wb`) in one `FeatureUnion`.** Character n-grams inside word boundaries share evidence across inflected forms (`odličan`/`odlična`/`odlično` all contain `odlič`), which the EDA showed is critical: 27% of validation word types are unseen in training. The search picked char n-grams for **all three** classifiers.
+
+**Search space and what it found.** Word n-grams {1, 1–2}, char n-grams {none, 2–5, 3–5}, `min_df` {1, 2, 3}, sublinear TF {on, off}, plus a log-uniform `C` / `alpha`. Every best configuration used **word unigrams only**, char 3–5-grams, `min_df=3` and sublinear TF. Bigrams did not help: with ~1,300 training reviews most bigrams are too rare to estimate, and char n-grams already capture local context. Sublinear TF (1 + log tf) won everywhere, which makes sense for long reviews where a word repeated 10 times is not 10× more informative.
+
+**Optuna (TPE) on the fixed validation split, as the spec requires (FR-06).** TPE is seeded, so the search is reproducible (tested). Vectorizer outputs are cached per setting, with word and char blocks cached separately and stacked, so 90 trials take ~3 minutes instead of ~15.
+
+**Key lesson: the validation set is too small to rank close configurations.** With 169 validation reviews, one review = 0.6 F1 points. In the SVM search, 10 of 30 trials score within one review of the best, and `C` from 0.5 to 95 gives the same F1. The first run's best `C=9.4` landed at the old upper bound (10). After widening the range to 100 the search found the same top score with `C=0.52`, which confirms a flat plateau, not an optimum beyond the edge. The report now flags any regularization parameter at the edge of its range automatically. Consequences:
+- The choice of "best" classical model (LR 0.870 vs. SVM 0.864 vs. NB 0.852) is within noise for LR vs. SVM. Test-set comparison in Phase 7 should report bootstrap confidence intervals, not just point estimates.
+- More trials would mostly overfit the validation set (the search would pick lucky configurations), so 30 per classifier is deliberate. A more robust alternative is k-fold CV on train+val for selection. It is not used here because the spec fixes the validation-split protocol, and the same protocol is needed for the BiLSTM and BERTić for a fair comparison.
+
+**Final models are refitted on the training split only, not train+val.** The saved model is then exactly the one whose validation score is reported. Refitting on train+val would gain ~12% more data but leave no honest validation number for it.
+
+**Linear SVM probabilities via Platt scaling (`CalibratedClassifierCV`, sigmoid, 5 folds).** `LinearSVC` has no `predict_proba`, but the `Predictor` interface and the demo need probabilities. Calibration fits five SVMs on 4/5 of the data and averages, so its validation F1 differs slightly from the uncalibrated search score; this is visible in the report. The search itself runs without calibration (5× faster, and it doesn't change which settings separate the classes best).
+
+**Complement NB instead of Multinomial NB.** Complement NB estimates each class's parameters from the *other* classes' data, which is more stable on text and works well with TF-IDF inputs. It is the fastest and smallest model, but the weakest (0.852): its feature-independence assumption is badly violated by overlapping char n-grams.
+
+**Training time = fresh fit of the full pipeline.** The vectorizer, classifier and calibration are all inside the timed fit, so the number is comparable with the neural models (FR-10). Inference is reported two ways: per example in a batch (ms/example) and single-text latency, which is what the demo experiences (NFR-06: < 2 s; the classical models need ~5–10 ms).
+
+**Interpretability (FR-14 groundwork).** Per-class weights come from `coef_` (binary models expanded to `[-w, w]`), averaged over calibration folds for the SVM, and from centered log-probabilities for NB. `explain()` multiplies a text's TF-IDF values by the weight difference to show which words drove the decision. Example: *"Film nije loš."* ("The film is not bad.") is classified **negative** (p = 0.95) because `loš` dominates and `nije` adds negative weight; unigram features cannot represent negation scope. This is exactly the error type the EDA predicted.
+
+**Influential-word lists contain function words** (`ni`, `bi`, `bilo`, `ja`, `vas`). These are real signals, not noise. Conditional `bi`/`bilo` ("would have been") expresses unmet expectations, and `vas` ("you") reflects reviews addressing the reader with recommendations. No stopword removal is applied for modelling for this reason; the stopword list is only used for raw frequency counts in the EDA.
