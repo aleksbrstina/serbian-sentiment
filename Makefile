@@ -2,7 +2,7 @@
 UV ?= uv
 RUN := $(UV) run
 
-.PHONY: help install install-all lint format test test-cov pre-commit prepare-data eda train-classical notebooks mlflow-ui clean
+.PHONY: help install install-all lint format test test-cov pre-commit prepare-data eda train-classical train-bilstm notebooks mlflow-ui clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -38,6 +38,9 @@ eda: ## Generate the EDA report and figures in reports/eda
 
 train-classical: ## Tune, train and log the TF-IDF models (configs/classical.yaml)
 	$(RUN) python scripts/train.py --config configs/classical.yaml
+
+train-bilstm: ## Train the BiLSTM (configs/bilstm.yaml; needs `make install-all` and fastText vectors)
+	$(RUN) python scripts/train.py --config configs/bilstm.yaml
 
 notebooks: ## Execute notebooks in place (requires processed data)
 	$(RUN) python scripts/execute_notebooks.py notebooks/01_eda.ipynb

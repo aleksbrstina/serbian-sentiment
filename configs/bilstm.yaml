@@ -1,5 +1,5 @@
-# Run configuration for the bilstm model.
-# Model-specific parameters will be added under `params` when the model is implemented.
+# BiLSTM over fastText embeddings, trained with a hand-written PyTorch loop.
+# Rationale for each choice: docs/decisions.md (Phase 5).
 model: bilstm
 seed: 42
 experiment_name: serbian-sentiment
@@ -10,4 +10,35 @@ data:
   train: data/processed/train.parquet
   val: data/processed/val.parquet
   test: data/processed/test.parquet
-params: {}
+params:
+  # Vocabulary and inputs
+  min_freq: 2                  # 55% of training types are hapaxes; they map to <unk>
+  max_vocab: 50000
+  max_len: 256                 # 512 was 2.6x slower per epoch; head+tail keeps the verdict
+  truncation: head_tail        # keep opening and closing verdict of long reviews
+  # Embeddings
+  embedding_path: data/raw/embeddings/cc.sr.300.vec.gz
+  embedding_dim: 300
+  transliterate_embeddings: true   # fastText vocab is mostly Cyrillic; data is Latin
+  freeze_embeddings: true      # unfrozen: train loss 0.05 / val loss 1.07 by epoch 4
+  normalize_embeddings: true   # rescale fastText vectors (std ~0.05) to unit std
+  embedding_cache_dir: data/processed
+  # Architecture
+  hidden_size: 64              # per direction; 128 doubled epoch time without a gain
+  num_layers: 1
+  dropout: 0.3                 # experiments: 0.3 + lr 2e-3 beat 0.5 + lr 1e-3
+  embedding_dropout: 0.1
+  pooling: max_mean
+  # Optimization
+  batch_size: 16               # more updates per epoch; 32 learned too slowly
+  lr: 0.002
+  weight_decay: 0.0001
+  max_epochs: 25
+  patience: 5
+  grad_clip: 1.0
+  monitor: val_loss
+  lr_scheduler: plateau        # halve lr when val loss stops improving
+  lr_factor: 0.5
+  lr_patience: 1
+  num_threads: 4
+  latency_samples: 50

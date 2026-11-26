@@ -43,10 +43,13 @@ Set `variant: 3C` in `configs/data.yaml` for three-class classification.
 
 ```bash
 make train-classical   # TF-IDF + LR / linear SVM / Naive Bayes, Optuna search (~4 min on CPU)
+make train-bilstm      # BiLSTM over fastText embeddings, hand-written PyTorch loop (CPU)
 make mlflow-ui         # browse parameters, metrics and artifacts at http://127.0.0.1:5000
 ```
 
-Validation results and the most influential words: [`reports/classical/validation.md`](reports/classical/validation.md). Models are saved to `artifacts/` (not tracked by git).
+The BiLSTM needs the Serbian fastText vectors: download [`cc.sr.300.vec.gz`](https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.sr.300.vec.gz) (~1.2 GB) into `data/raw/embeddings/`.
+
+Validation results and the most influential words: [`reports/classical/validation.md`](reports/classical/validation.md). BiLSTM learning curves: [`reports/bilstm/training.md`](reports/bilstm/training.md). Models are saved to `artifacts/` (not tracked by git).
 
 ### Exploratory data analysis
 
@@ -77,4 +80,6 @@ tests/       unit tests
 | --- | --- | --- |
 | SerbMR dataset | CC BY-NC-SA 4.0 | Batanović, Nikolić, Milosavljević (2016). *Reliable Baselines for Sentiment Analysis in Resource-Limited Languages: The Serbian Movie Review Dataset.* LREC 2016. [GitHub](https://github.com/vukbatanovic/SerbMR) |
 
-Pretrained models will be added as they are introduced.
+| fastText Serbian vectors (`cc.sr.300`) | CC BY-SA 3.0 | Grave, Bojanowski, Gupta, Joulin, Mikolov (2018). *Learning Word Vectors for 157 Languages.* LREC 2018. [fasttext.cc](https://fasttext.cc/docs/en/crawl-vectors.html) |
+
+Pretrained transformer models will be added as they are introduced.

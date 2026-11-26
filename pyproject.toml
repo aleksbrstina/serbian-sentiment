@@ -75,3 +75,13 @@ filterwarnings = [
 markers = [
     "slow: tests that train models or need large dependencies",
 ]
+
+# CPU-only PyTorch wheels for local development and CI (much smaller than CUDA builds).
+# The Colab/Kaggle notebook installs with pip, which ignores this section and uses the GPU build.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]

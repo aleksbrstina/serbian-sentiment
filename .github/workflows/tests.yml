@@ -13,8 +13,8 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - name: Install dependencies
-        run: make install
+      - name: Install dependencies (core + dev + CPU PyTorch for the BiLSTM tests)
+        run: uv sync --python 3.11 --extra neural
       - name: Lint
         run: make lint
       - name: Test

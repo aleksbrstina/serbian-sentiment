@@ -76,3 +76,33 @@ Short rationale for non-trivial choices. Newest phase at the bottom.
 **Interpretability (FR-14 groundwork).** Per-class weights come from `coef_` (binary models expanded to `[-w, w]`), averaged over calibration folds for the SVM, and from centered log-probabilities for NB. `explain()` multiplies a text's TF-IDF values by the weight difference to show which words drove the decision. Example: *"Film nije loš."* ("The film is not bad.") is classified **negative** (p = 0.95) because `loš` dominates and `nije` adds negative weight; unigram features cannot represent negation scope. This is exactly the error type the EDA predicted.
 
 **Influential-word lists contain function words** (`ni`, `bi`, `bilo`, `ja`, `vas`). These are real signals, not noise. Conditional `bi`/`bilo` ("would have been") expresses unmet expectations, and `vas` ("you") reflects reviews addressing the reader with recommendations. No stopword removal is applied for modelling for this reason; the stopword list is only used for raw frequency counts in the EDA.
+
+## Phase 5: BiLSTM
+
+All numbers below come from `reports/bilstm/training.md` and `reports/bilstm/experiments.md` (generated from MLflow). Final model: **0.763 validation macro F1**, about 10 points below TF-IDF (0.870).
+
+**Why the BiLSTM loses to TF-IDF here, and why that's expected.** 1,344 training reviews is tiny for a sequence model. The BiLSTM has to learn composition from scratch, while TF-IDF + a linear model needs only one weight per feature. The learning curves show it: train F1 reaches 0.98 while validation peaks at ~0.79. The network memorizes rather than generalizes. With pretrained contextual representations (BERTić, Phase 6) this gap should close. The BiLSTM is the "neural network from scratch" baseline the spec asks for, not a model expected to win.
+
+**Tokenizer: lower-cased regex, words + numbers + `!`/`?`.** It matches how fastText vectors are keyed (lower-cased surface forms), so coverage stays high. `!` and `?` are kept because the EDA showed question marks are 1.5× more frequent in negative reviews.
+
+**Vocabulary: `min_freq=2` (34,179 types).** 55% of training types are hapaxes. They would get embedding rows with one training example each, and almost none appear in validation. Rare words map to `<unk>`, and since fastText covers them anyway, a cut-off loses little: 88.1% of validation tokens are in the vocabulary.
+
+**fastText transliteration: Cyrillic entries mapped to Latin.** 74% of the 200k most frequent `cc.sr.300` words are Cyrillic (Serbian Wikipedia and web text are largely Cyrillic), while our data is Latin. Lower-casing and transliterating the fastText vocabulary before lookup raises type coverage from **78.0% to 95.2%**. Token coverage moves less (85.7% → 87.8%), because frequent words exist in both scripts; the gain is in rarer, content-bearing words. When several entries map to one key, the most frequent wins (the file is frequency-sorted).
+
+**Frozen embeddings.** Unfreezing let the model fit the training set within 3 epochs (train loss 0.05) while validation loss rose to 1.07: 10.2M embedding parameters vs. 1,344 reviews. Frozen embeddings leave 188k trainable parameters (LSTM + output). This also means the 41.8 MB model file is 98% fixed embedding rows.
+
+**Embeddings rescaled to unit standard deviation.** Raw fastText values have std ≈ 0.047, so the LSTM's gates saw near-zero inputs and learned very slowly with frozen embeddings (train loss barely moved in 4 epochs). Dividing by a single global constant keeps all relative geometry (cosine similarities unchanged) and puts inputs on the scale LSTM initialization assumes.
+
+**Pooling: max + mean over time instead of the last hidden state.** For ~250-token inputs, the final state is dominated by the last sentences. Max pooling lets a strong cue anywhere reach the classifier, and mean pooling adds an overall tone. Max-only reached the same F1 (0.763) but needed 18 epochs instead of 5.
+
+**Truncation: head + tail, max 256 tokens.** This is the clearest experimental result in the project: keeping the first 128 + last 128 tokens gives **0.763 vs. 0.685** for keeping only the first 256 (same settings otherwise). It confirms the EDA hypothesis that reviews end with the verdict. The same choice will be tested for BERTić. 256 instead of 512 tokens: 2.6× faster per epoch (15 vs. 41 s), needed to meet the 15-minute CPU budget (NFR-02).
+
+**Optimization: AdamW, lr 2e-3, batch 16, gradient clipping at 1.0, ReduceLROnPlateau (×0.5 after 1 flat epoch).** Batch 32 gave only 42 updates per epoch and learned too slowly. Batch 16 doubles the updates at almost the same epoch time. Clipping prevents the exploding gradients LSTMs are prone to on long sequences. The scheduler damped the epoch-to-epoch swings seen without it (val F1 jumping 0.44 ↔ 0.76).
+
+**Early stopping on validation loss (patience 5), checkpoint = best epoch.** Validation loss is smoother than validation F1 on 169 examples (one review = 0.6 F1 points), and it also penalizes over-confident wrong predictions, which matters for the probabilities shown in the demo. The best epoch's weights are kept in memory and restored after training, and only those are saved.
+
+**Small, logged experiment series instead of a large search.** Four configurations, each a full run logged to MLflow (`exp-*` runs, `scripts/train.py --set ...`). With a validation set this small, a large search would mostly fit noise (see Phase 4). Each experiment tested one hypothesis: learning rate/dropout, pooling, truncation. Total cost ~15 minutes.
+
+**Reproducibility verified.** The official run reproduces the experiment run with identical loss and F1 in every epoch: seeded Python/NumPy/PyTorch RNGs, a seeded `DataLoader` generator, and a deterministic vocabulary order (ties broken alphabetically).
+
+**Plain PyTorch training loop.** `run_epoch` is the whole loop: forward, loss, `zero_grad`, `backward`, clip, `step`, with `torch.set_grad_enabled` switching between training and evaluation. `pack_padded_sequence` makes the LSTM skip padding, and a test checks that extra padding does not change the output.

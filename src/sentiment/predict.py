@@ -75,4 +75,8 @@ def load_predictor(directory: str | Path) -> Predictor:
         from sentiment.models.classical import ClassicalPredictor
 
         return ClassicalPredictor.load(directory)
+    if model_type == "bilstm":
+        from sentiment.models.neural.train import BiLSTMPredictor
+
+        return BiLSTMPredictor.load(directory)
     raise ValueError(f"Unknown model type {model_type!r} in {meta_path}")
