@@ -29,6 +29,16 @@ make install-all    # + torch, transformers, gradio
 make test
 ```
 
+### Data
+
+The project uses **SerbMR** (Serbian Movie Review Dataset). Datasets are not downloaded automatically:
+
+1. Download `SerbMR-2C.csv` (binary) and optionally `SerbMR-3C.csv` (three-class) from the [SerbMR v1.0 release](https://github.com/vukbatanovic/SerbMR/releases/tag/v1.0).
+2. Place them in `data/raw/`.
+3. Run `make prepare-data`. This writes `data/processed/{train,val,test}.parquet` and the report [`reports/data_quality.md`](reports/data_quality.md).
+
+Set `variant: 3C` in `configs/data.yaml` for three-class classification.
+
 ## Repository layout
 
 ```text
@@ -50,4 +60,8 @@ tests/       unit tests
 
 ## Data and model licenses
 
-Sources and licenses for datasets and pretrained models will be listed here (non-commercial / research use).
+| Resource | License | Source |
+| --- | --- | --- |
+| SerbMR dataset | CC BY-NC-SA 4.0 | Batanović, Nikolić, Milosavljević (2016). *Reliable Baselines for Sentiment Analysis in Resource-Limited Languages: The Serbian Movie Review Dataset.* LREC 2016. [GitHub](https://github.com/vukbatanovic/SerbMR) |
+
+Pretrained models will be added as they are introduced.

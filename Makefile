@@ -2,7 +2,7 @@
 UV ?= uv
 RUN := $(UV) run
 
-.PHONY: help install install-all lint format test test-cov pre-commit mlflow-ui clean
+.PHONY: help install install-all lint format test test-cov pre-commit prepare-data mlflow-ui clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -29,6 +29,9 @@ test-cov: ## Run unit tests with a coverage report
 
 pre-commit: ## Install git pre-commit hooks
 	$(RUN) pre-commit install
+
+prepare-data: ## Normalize, clean and split raw data (configs/data.yaml)
+	$(RUN) python scripts/prepare_data.py --config configs/data.yaml
 
 mlflow-ui: ## Launch the local MLflow UI on http://127.0.0.1:5000
 	$(RUN) mlflow ui --backend-store-uri ./mlruns

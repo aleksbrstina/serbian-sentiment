@@ -1,0 +1,10 @@
+# Data preparation config (scripts/prepare_data.py).
+dataset: serbmr
+variant: 2C            # 2C = binary (positive/negative), 3C = adds neutral (FR-15)
+raw_dir: data/raw
+processed_dir: data/processed
+report_path: reports/data_quality.md
+seed: 42
+val_size: 0.1
+test_size: 0.1
+ascii_diacritics: false  # keep diacritics; see docs/decisions.md
