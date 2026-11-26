@@ -47,3 +47,15 @@ def test_script_prints_instructions_when_data_missing(tmp_path, capsys):
     cfg.write_text(f"raw_dir: {tmp_path / 'raw'}\n", encoding="utf-8")
     assert main(["--config", str(cfg)]) == 1
     assert "releases/tag/v1.0" in capsys.readouterr().err
+
+
+def test_split_fingerprint_detects_changes(tmp_path):
+    from sentiment.data.pipeline import split_fingerprint
+
+    _make_raw(tmp_path / "raw")
+    result = prepare_data(_config(tmp_path))
+    fp = split_fingerprint(result.splits)
+    assert fp == split_fingerprint(prepare_data(_config(tmp_path)).splits)
+    swapped = dict(result.splits)
+    swapped["val"], swapped["test"] = result.splits["test"], result.splits["val"]
+    assert split_fingerprint(swapped) != fp

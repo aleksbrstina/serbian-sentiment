@@ -44,8 +44,11 @@ Set `variant: 3C` in `configs/data.yaml` for three-class classification.
 ```bash
 make train-classical   # TF-IDF + LR / linear SVM / Naive Bayes, Optuna search (~4 min on CPU)
 make train-bilstm      # BiLSTM over fastText embeddings, hand-written PyTorch loop (CPU)
+make train-bertic      # fine-tune BERTić; needs a GPU, see below
 make mlflow-ui         # browse parameters, metrics and artifacts at http://127.0.0.1:5000
 ```
+
+**BERTić on a free GPU:** open [`notebooks/colab_train_bertic.ipynb`](notebooks/colab_train_bertic.ipynb) in Google Colab or Kaggle (T4 GPU). It installs the package, prepares the data and verifies that the split matches the committed one, fine-tunes, optionally publishes to the Hugging Face Hub, and packages the reports. Import the Colab run into local MLflow with `python scripts/import_run.py --report-dir reports/bertic`.
 
 The BiLSTM needs the Serbian fastText vectors: download [`cc.sr.300.vec.gz`](https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.sr.300.vec.gz) (~1.2 GB) into `data/raw/embeddings/`.
 
@@ -82,4 +85,4 @@ tests/       unit tests
 
 | fastText Serbian vectors (`cc.sr.300`) | CC BY-SA 3.0 | Grave, Bojanowski, Gupta, Joulin, Mikolov (2018). *Learning Word Vectors for 157 Languages.* LREC 2018. [fasttext.cc](https://fasttext.cc/docs/en/crawl-vectors.html) |
 
-Pretrained transformer models will be added as they are introduced.
+| BERTić (`classla/bcms-bertic`) | Apache 2.0 | Ljubešić, Lauc (2021). *BERTić — The Transformer Language Model for Bosnian, Croatian, Montenegrin and Serbian.* BSNLP 2021. [Hugging Face](https://huggingface.co/classla/bcms-bertic) |

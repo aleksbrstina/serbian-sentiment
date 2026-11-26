@@ -101,6 +101,19 @@ def prepare_data(config: DataConfig) -> PrepResult:
     )
 
 
+def split_fingerprint(splits: dict[str, pd.DataFrame]) -> str:
+    """Short hash of which record ids landed in which split.
+
+    Lets another machine (e.g. Colab) verify it reproduced exactly the same split,
+    independent of library versions.
+    """
+    h = hashlib.sha256()
+    for name in SPLITS:
+        ids = sorted(int(i) for i in splits[name]["id"])
+        h.update(f"{name}:{','.join(map(str, ids))};".encode())
+    return h.hexdigest()[:16]
+
+
 def _labels_present(*frames: pd.DataFrame) -> list[str]:
     present = set().union(*(set(f["label"].dropna()) for f in frames))
     return [label for label in LABEL_ORDER if label in present]
@@ -189,6 +202,7 @@ def render_quality_report(result: PrepResult, config: DataConfig) -> str:
                         ["Raw file SHA-256", f"`{result.raw_sha256}`"],
                         ["Seed", config.seed],
                         ["Split (train/val/test)", _split_ratio(config)],
+                        ["Split fingerprint", f"`{split_fingerprint(result.splits)}`"],
                         ["Generated at (UTC)", datetime.now(UTC).strftime("%Y-%m-%d %H:%M")],
                     ],
                 ),

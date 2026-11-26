@@ -79,4 +79,8 @@ def load_predictor(directory: str | Path) -> Predictor:
         from sentiment.models.neural.train import BiLSTMPredictor
 
         return BiLSTMPredictor.load(directory)
+    if model_type == "transformer":
+        from sentiment.models.transformer import TransformerPredictor
+
+        return TransformerPredictor.load(directory)
     raise ValueError(f"Unknown model type {model_type!r} in {meta_path}")

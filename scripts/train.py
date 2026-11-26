@@ -66,6 +66,12 @@ def main(argv: list[str] | None = None) -> int:
         from sentiment.models.neural.train import train_bilstm
 
         train_bilstm(config, report_dir=args.report_dir or "reports/bilstm", run_name=args.run_name)
+    elif config.model == "bertic":
+        from sentiment.models.transformer import train_transformer
+
+        train_transformer(
+            config, report_dir=args.report_dir or "reports/bertic", run_name=args.run_name
+        )
     else:
         print(f"Model {config.model!r} is not implemented yet.", file=sys.stderr)
         return 2

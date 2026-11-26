@@ -3,7 +3,7 @@ name = "serbian-sentiment"
 version = "0.1.0"
 description = "Sentiment classification of Serbian-language reviews: classical ML vs. BiLSTM vs. fine-tuned BERTić."
 readme = "README.md"
-requires-python = ">=3.11,<3.12"
+requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
     "numpy>=1.26",

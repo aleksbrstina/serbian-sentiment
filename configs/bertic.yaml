@@ -1,5 +1,6 @@
-# Run configuration for the bertic model.
-# Model-specific parameters will be added under `params` when the model is implemented.
+# Fine-tuning BERTić (ELECTRA-base for BCMS) with the Hugging Face Trainer.
+# Designed for a free Colab/Kaggle GPU (T4); see notebooks/colab_train_bertic.ipynb.
+# Rationale for each choice: docs/decisions.md (Phase 6).
 model: bertic
 seed: 42
 experiment_name: serbian-sentiment
@@ -10,4 +11,23 @@ data:
   train: data/processed/train.parquet
   val: data/processed/val.parquet
   test: data/processed/test.parquet
-params: {}
+params:
+  model_name: classla/bcms-bertic   # verified on the Hub; fallback: FacebookAI/xlm-roberta-base
+  max_length: 256                    # spec; 97.8% of reviews are longer (median 669 subwords)
+  truncation: head_tail              # first 127 + last 127 subwords; head-only: --set params.truncation=head
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.1                  # linear warmup over the first 10% of steps, then linear decay
+  num_train_epochs: 5
+  train_batch_size: 16
+  eval_batch_size: 32
+  gradient_accumulation_steps: 1
+  early_stopping_patience: 2
+  metric_for_best_model: eval_loss
+  fp16: auto                         # mixed precision on GPU, off on CPU
+  max_train_samples: null
+  max_eval_samples: null
+  push_to_hub: false                 # enable in Colab after `huggingface_hub.login()`
+  hub_model_id: null                 # e.g. <your-hf-username>/bertic-serbmr-sentiment
+  hub_private: false
+  latency_samples: 50

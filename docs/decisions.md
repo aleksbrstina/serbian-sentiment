@@ -106,3 +106,33 @@ All numbers below come from `reports/bilstm/training.md` and `reports/bilstm/exp
 **Reproducibility verified.** The official run reproduces the experiment run with identical loss and F1 in every epoch: seeded Python/NumPy/PyTorch RNGs, a seeded `DataLoader` generator, and a deterministic vocabulary order (ties broken alphabetically).
 
 **Plain PyTorch training loop.** `run_epoch` is the whole loop: forward, loss, `zero_grad`, `backward`, clip, `step`, with `torch.set_grad_enabled` switching between training and evaluation. `pack_padded_sequence` makes the LSTM skip padding, and a test checks that extra padding does not change the output.
+
+## Phase 6: Transformer (BERTić)
+
+**Model verified on the Hub: `classla/bcms-bertic`.** It is an ELECTRA-base discriminator (110M parameters, 12 layers, 768 hidden, 32k WordPiece vocabulary, cased, Apache 2.0) pretrained on 8 billion tokens of Bosnian, Croatian, Montenegrin and Serbian. Loading it for classification drops the pretraining head (`discriminator_predictions.*`) and initializes a new `classifier.*` head; the load report shows exactly that, as expected. Fallback: `FacebookAI/xlm-roberta-base` (multilingual, `--set params.model_name=...`).
+
+**Library versions checked before implementation (transformers 5.24, datasets 5.2, accelerate 1.16).** Four 5.x API changes would have broken code written from older tutorials, each found by a smoke test and fixed:
+1. `warmup_ratio` is gone; `warmup_steps` accepts a float in [0, 1) as a ratio.
+2. `tokenizer.build_inputs_with_special_tokens` is gone. `special_token_frame()` derives the special tokens by tokenizing a probe word with and without them, so it works for any architecture.
+3. Tokenizers take `vocab=` (dict); `vocab_file=` is silently ignored and yields an all-`[UNK]` tokenizer (caught by a unit test).
+4. The default SDPA attention kernel returns no attention weights; attention visualization switches to the eager implementation for that call only.
+
+**Truncation is the central problem: 97.8% of reviews exceed 256 subword tokens.** Median review: 669 subwords (1.51 per word; Serbian morphology splits words, e.g. `traljavo` → `tra ##lja ##vo`). 74% exceed even BERT's hard limit of 512. With the spec's `max_length=256`, the model sees about 38% of a median review. Default: **head+tail** (first 127 + last 127 subwords), because the BiLSTM experiment showed head+tail beats head-only by 7.8 F1 points and reviews end with a verdict. Hugging Face tokenizers only truncate one side, so the full text is tokenized and truncated manually. The Colab notebook runs a head-only comparison.
+
+**Truncation settings stored in the model's `config.json`** (`sentiment_max_length`, `sentiment_truncation`). A model downloaded from the Hub then carries its own preprocessing; `TransformerPredictor` reads it, so the demo and evaluation can't silently use different truncation than training did.
+
+**Hyperparameters: lr 2e-5, batch 16, 5 epochs, linear warmup over 10% then linear decay, weight decay 0.01.** These are the standard BERT fine-tuning settings (Devlin et al. recommend lr {2, 3, 5}e-5, batch {16, 32}, 2–4 epochs). Warmup keeps the large early gradients of the randomly initialized head from wrecking pretrained weights. With only 84 steps per epoch, 5 epochs gives the schedule room, and early stopping (patience 2) cuts it short if validation loss rises.
+
+**Model selection on validation loss, not F1.** Same reasoning as the BiLSTM: on 169 validation reviews F1 moves in 0.6-point jumps, while loss is continuous and also penalizes over-confident errors, which matters for the probabilities in the demo. The Trainer reloads the best checkpoint at the end (`load_best_model_at_end`); intermediate checkpoints are deleted after saving the final model.
+
+**Hugging Face Trainer, as the spec requires, with metrics from the shared module.** `compute_metrics` reuses `sentiment.evaluation.metrics`, so the macro F1 the Trainer optimizes is computed identically to the other models. Mixed precision (`fp16`) is enabled automatically on GPU. Dynamic padding (`DataCollatorWithPadding`) pads each batch only to its longest sequence.
+
+**Colab reproducibility: the notebook verifies the data, it doesn't trust it.** Processed data is not in git, so Colab rebuilds it from the raw file. The notebook asserts that the raw file's SHA-256 *and* a split fingerprint (hash of which review ids are in train/val/test) match the committed `reports/data_quality.md`. A different scikit-learn version could reshuffle the split, and then BERTić would be compared against the other models on a different test set without anyone noticing.
+
+**`requires-python` relaxed to `>=3.11`.** Colab runs a newer Python than 3.11, and `pip install -e .` would refuse to install with the old `<3.12` cap. Local development stays pinned to 3.11 via `.python-version` and `uv sync --python 3.11`.
+
+**Publishing: `HfApi.upload_folder` with a generated model card.** One upload contains the weights (safetensors), tokenizer, `metadata.json` and a README with metrics, preprocessing, usage, and the CC BY-NC-SA data license. Authentication uses `huggingface_hub.login()` in the notebook, so no token ever touches the repository or config files.
+
+**Colab runs are imported into local MLflow** (`scripts/import_run.py`), so all three models end up in one MLflow experiment even though the transformer trains on another machine.
+
+**Offline tests with a tiny random ELECTRA.** A 2-layer, 16-dimensional ELECTRA with a 17-word vocabulary is built in the test fixture, so the full `train_transformer` pipeline (Trainer, checkpoint selection, saving, MLflow, reloading) runs in seconds without network access, in CI too.
