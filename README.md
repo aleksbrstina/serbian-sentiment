@@ -39,6 +39,10 @@ The project uses **SerbMR** (Serbian Movie Review Dataset). Datasets are not dow
 
 Set `variant: 3C` in `configs/data.yaml` for three-class classification.
 
+### Exploratory data analysis
+
+`make eda` generates [`reports/eda/eda_report.md`](reports/eda/eda_report.md) with figures and data-driven insights; [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb) shows the same analysis interactively (`make notebooks` re-executes it).
+
 ## Repository layout
 
 ```text

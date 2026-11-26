@@ -33,3 +33,22 @@ Short rationale for non-trivial choices. Newest phase at the bottom.
 **Raw file SHA-256 in the quality report.** It ties every processed split to an exact input file, so a silently changed download is detectable (NFR-01).
 
 **`id` column kept.** The row number from the raw file travels with every record into the splits, so misclassified examples in error analysis (FR-11) can be traced back to the original.
+
+## Phase 3: Exploratory data analysis
+
+**Word-level EDA on the training split only.** χ² rankings, frequency lists and cue rates shape modelling decisions (features, truncation, error categories). Computing them on val/test would leak held-out information into those decisions. The validation split is used only for the OOV rate, because that is exactly the situation a trained model faces.
+
+**χ² on binary word presence, not counts.** With reviews of 21–1835 words, raw counts let a single long review dominate a word's score. Presence answers a cleaner question: "does a review containing this word tend to be positive?" Each word is assigned to the class where its document share is highest.
+
+**Mann-Whitney U instead of a t-test for length.** The length distribution is strongly right-skewed (mean > median, long tail up to ~1800 words). A rank test makes no normality assumption.
+
+**Insights are generated from code with conditional wording.** E.g. "length carries no signal" is only emitted if p ≥ 0.05; otherwise the text says the opposite. If the data or split changes, the report cannot silently go stale (spec: numbers are never typed by hand).
+
+**Findings that change later phases:**
+- *Truncation.* ~90% of reviews exceed 256 words, and subword tokens outnumber words. With the spec's `max_length=256`, BERTić sees only the opening of almost every review. In Phase 6, compare head-only with head+tail truncation (e.g. first 128 + last 128 tokens). Reviews often end with a verdict, as the samples in the notebook show.
+- *Morphology.* 27% of validation word types are unseen in training. This supports character n-grams in TF-IDF (Phase 4) and fastText initialization (fastText builds vectors from subwords) for the BiLSTM (Phase 5), and it argues for a frequency cut-off on the BiLSTM vocabulary, since 55% of training types occur only once.
+- *Negation.* Negation words appear in ~98% of reviews of both classes, so a bag of words cannot use "nije" as a sentiment cue. It is expected to be a top error category (FR-11).
+- *Mixed sentiment.* Strong negative cues appear in positive reviews (*nažalost* occurs in 39 positive training reviews). Long reviews weigh pros and cons, so mixed sentiment is a second expected error category.
+- *No leakage via explicit scores.* "x/10" appears in <1% of reviews, so it is not worth masking.
+
+**Notebook generated from the same functions as the report, and executed by `make notebooks`.** The notebook is a view on `sentiment.eda`, not a second implementation, so its numbers are always identical to `reports/eda/eda_report.md`. It is committed with outputs so the plots are visible on GitHub without running anything.
