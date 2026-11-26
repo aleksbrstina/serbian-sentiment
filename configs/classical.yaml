@@ -1,0 +1,11 @@
+# Run configuration for the classical model.
+# Model-specific parameters will be added under `params` when the model is implemented.
+model: classical
+seed: 42
+experiment_name: serbian-sentiment
+output_dir: artifacts/classical
+data:
+  train: data/processed/train.parquet
+  val: data/processed/val.parquet
+  test: data/processed/test.parquet
+params: {}

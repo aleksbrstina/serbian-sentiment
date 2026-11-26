@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# Data and model weights are never committed (NFR-08)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+artifacts/
+mlruns/
+mlartifacts/
+*.pt
+*.bin
+*.safetensors
+*.joblib
+*.vec
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
