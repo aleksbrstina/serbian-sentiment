@@ -23,7 +23,7 @@
   "learning_rate": 2e-05,
   "n_train": 1344,
   "n_val": 169,
-  "hub_model_id": null,
+  "hub_model_id": "aleksbrstina/bertic-serbmr-sentiment",
   "mlflow_run_id": "31dbeb6e19224fb9869dad49fceb1c35",
   "model_size_mb": 443.236101
 }

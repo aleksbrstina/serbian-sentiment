@@ -48,6 +48,8 @@ make train-bertic      # fine-tune BERTić; needs a GPU, see below
 make mlflow-ui         # browse parameters, metrics and artifacts at http://127.0.0.1:5000
 ```
 
+**Fine-tuned model:** [`aleksbrstina/bertic-serbmr-sentiment`](https://huggingface.co/aleksbrstina/bertic-serbmr-sentiment) on the Hugging Face Hub. Load it with `TransformerPredictor.load("aleksbrstina/bertic-serbmr-sentiment")`, which applies the same head+tail truncation as training.
+
 **BERTić on a free GPU:** open [`notebooks/colab_train_bertic.ipynb`](notebooks/colab_train_bertic.ipynb) in Google Colab or Kaggle (T4 GPU). It installs the package, prepares the data and verifies that the split matches the committed one, fine-tunes, optionally publishes to the Hugging Face Hub, and packages the reports. Import the Colab run into local MLflow with `python scripts/import_run.py --report-dir reports/bertic`.
 
 The BiLSTM needs the Serbian fastText vectors: download [`cc.sr.300.vec.gz`](https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.sr.300.vec.gz) (~1.2 GB) into `data/raw/embeddings/`.
