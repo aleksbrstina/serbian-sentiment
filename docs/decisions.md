@@ -136,3 +136,12 @@ All numbers below come from `reports/bilstm/training.md` and `reports/bilstm/exp
 **Colab runs are imported into local MLflow** (`scripts/import_run.py`), so all three models end up in one MLflow experiment even though the transformer trains on another machine.
 
 **Offline tests with a tiny random ELECTRA.** A 2-layer, 16-dimensional ELECTRA with a 17-word vocabulary is built in the test fixture, so the full `train_transformer` pipeline (Trainer, checkpoint selection, saving, MLflow, reloading) runs in seconds without network access, in CI too.
+
+### Phase 6 results (CPU verification run)
+
+Numbers from `reports/bertic/training.md`. The run used the official config on this project's 4-core CPU as an end-to-end check before Colab: **55 minutes** (≈17 min per epoch; a T4 GPU is expected to be roughly 10× faster).
+
+- **Validation macro F1 0.875 at the selected epoch 2**, ahead of the BiLSTM (0.763) and level with TF-IDF + LR (0.870; one review apart). Inference: ~100 ms per review on CPU, well under the 2 s demo budget (NFR-06).
+- **Model selection on loss picked epoch 2, while epoch 3 had higher F1 (0.899 vs 0.875).** Validation loss at epochs 2 and 3 is almost identical (0.316 vs 0.323), so loss slightly preferred the less confident model, while F1 counted four more correct reviews at epoch 3. The criterion is **not** switched after seeing this. Choosing the selection metric after looking at the results is a form of overfitting to the validation set, and the 0.024 F1 gap is about four reviews out of 169, within noise. The test set in Phase 7, with confidence intervals, is the right place to compare the models.
+- **Overfitting starts after epoch 2:** training loss keeps falling (0.36 → 0.11) while validation loss rises (0.32 → 0.39). Early stopping (patience 2) ended training after epoch 4 of 5, and the epoch-2 checkpoint was restored.
+- **97.8% of training reviews were truncated** at 256 tokens. That BERTić matches TF-IDF while seeing roughly a third of each review suggests the transformer extracts more per token; a longer context (512) is the most obvious next experiment.

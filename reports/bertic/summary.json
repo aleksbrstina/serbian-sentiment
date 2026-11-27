@@ -1,0 +1,29 @@
+{
+  "name": "BERTi\u0107",
+  "model_name": "classla/bcms-bertic",
+  "val_metrics": {
+    "accuracy": 0.8757396449704142,
+    "macro_f1": 0.8748810153358011,
+    "macro_precision": 0.8876623376623377,
+    "macro_recall": 0.8762605042016807,
+    "f1_negative": 0.8852459016393442,
+    "f1_positive": 0.864516129032258
+  },
+  "best_epoch": 2,
+  "best_checkpoint": "artifacts/bertic/checkpoints/checkpoint-168",
+  "epochs_run": 4,
+  "train_seconds": 3298.766727501,
+  "device": "cpu",
+  "inference_ms_per_example": 101.48014106508909,
+  "latency_ms_single": 113.92994349967012,
+  "parameters": 110618882,
+  "max_length": 256,
+  "truncation": "head_tail",
+  "truncated_share": 0.9776785714285714,
+  "learning_rate": 2e-05,
+  "n_train": 1344,
+  "n_val": 169,
+  "hub_model_id": null,
+  "mlflow_run_id": "31dbeb6e19224fb9869dad49fceb1c35",
+  "model_size_mb": 443.236101
+}

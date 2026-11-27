@@ -263,8 +263,11 @@ def plot_history(history: pd.DataFrame, best_epoch: int, path: str | Path) -> Pa
         history["epoch"], history["val_macro_f1"], marker="o", color="C1", label="validation"
     )
     ax_f1.set(title="Validation macro F1", xlabel="Epoch", ylabel="Macro F1")
+    from matplotlib.ticker import MaxNLocator
+
     for ax in (ax_loss, ax_f1):
         ax.axvline(best_epoch, color="gray", linestyle="--", linewidth=1, label="best epoch")
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         ax.legend()
         ax.grid(alpha=0.3)
     fig.tight_layout()
