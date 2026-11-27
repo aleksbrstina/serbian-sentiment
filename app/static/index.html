@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="sr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sentiment recenzija na srpskom</title>
+<meta name="description" content="Klasifikacija sentimenta recenzija filmova na srpskom: TF-IDF model koji radi direktno u pregledaču.">
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --text: #1d1d1f; --muted: #5f6368; --border: #dcdcd8;
+    --accent: #1f5fa8; --pos: 31, 95, 168; --neg: 196, 43, 43; --bar-bg: #e8e8e4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141416; --panel: #1e1e21; --text: #ececee; --muted: #a2a2a8; --border: #34343a;
+      --accent: #7fb0ec; --pos: 110, 165, 235; --neg: 240, 110, 110; --bar-bg: #2c2c31;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font-size: 1.7rem; line-height: 1.2; margin: 0 0 8px; }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; }
+  p { margin: 0 0 12px; }
+  a { color: var(--accent); }
+  .muted { color: var(--muted); font-size: 0.92rem; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+           padding: 18px; margin-top: 18px; }
+  textarea { width: 100%; min-height: 150px; resize: vertical; padding: 12px; font: inherit;
+             color: var(--text); background: var(--bg); border: 1px solid var(--border);
+             border-radius: 8px; }
+  textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--border);
+           background: var(--panel); color: var(--text); padding: 6px 12px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff;
+                   font-weight: 600; padding: 9px 20px; }
+  @media (prefers-color-scheme: dark) { button.primary { color: #111; } }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .examples button { font-size: 0.88rem; max-width: 100%; overflow: hidden;
+                     text-overflow: ellipsis; white-space: nowrap; }
+  .verdict { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .verdict .label { font-size: 1.6rem; font-weight: 700; }
+  .bar { height: 10px; border-radius: 5px; background: var(--bar-bg); overflow: hidden; margin: 10px 0 4px; }
+  .bar > div { height: 100%; background: rgb(var(--pos)); }
+  .bar-legend { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); }
+  .highlighted { line-height: 2.1; word-wrap: break-word; }
+  .highlighted mark { color: inherit; border-radius: 4px; padding: 1px 3px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.current td { font-weight: 600; }
+  .table-wrap { overflow-x: auto; }
+  .status { min-height: 1.4em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Analiza sentimenta recenzija na srpskom</h1>
+  <p>Unesite recenziju filma (latinica ili ćirilica) i model će proceniti da li je pozitivna ili negativna.
+     Model je TF-IDF sa logističkom regresijom, istreniran na
+     <a href="https://github.com/vukbatanovic/SerbMR">SerbMR</a> recenzijama, i radi u celosti u vašem pregledaču:
+     tekst se nigde ne šalje.</p>
+  <p class="muted">Deo projekta <a href="https://github.com/aleksbrstina/serbian-sentiment">serbian-sentiment</a>,
+     koji poredi tri pristupa. Fino podešeni BERTić je objavljen na
+     <a href="https://huggingface.co/aleksbrstina/bertic-serbmr-sentiment">Hugging Face Hub-u</a>,
+     a demo sa sva tri modela se pokreće lokalno (<code>make app</code>).</p>
+
+  <section class="panel">
+    <label for="review"><h2>Recenzija</h2></label>
+    <textarea id="review" placeholder="Unesite tekst recenzije…"></textarea>
+    <div class="row">
+      <button id="analyze" class="primary" disabled>Analiziraj</button>
+      <span id="status" class="status muted" role="status">Učitavanje modela…</span>
+    </div>
+    <div class="row examples" id="examples"><span class="muted">Primeri:</span></div>
+  </section>
+
+  <section class="panel" id="result" hidden aria-live="polite">
+    <h2>Procena</h2>
+    <div class="verdict"><span class="label" id="label"></span><span class="muted" id="confidence"></span></div>
+    <div class="bar" aria-hidden="true"><div id="bar"></div></div>
+    <div class="bar-legend"><span>negativno</span><span>pozitivno</span></div>
+
+    <h2 style="margin-top:20px">Zašto?</h2>
+    <p class="muted">Reči koje su najviše uticale na odluku (prikazan je normalizovan tekst, onakav kakav model vidi).</p>
+    <div class="highlighted" id="highlighted"></div>
+    <div class="legend">
+      <span><span class="swatch" style="background: rgba(var(--pos), 0.55)"></span>vuče ka pozitivnom</span>
+      <span><span class="swatch" style="background: rgba(var(--neg), 0.55)"></span>vuče ka negativnom</span>
+    </div>
+  </section>
+
+  <section class="panel" id="comparison" hidden>
+    <h2>Kako se ovaj model poredi sa ostalima</h2>
+    <p class="muted">Rezultati na test skupu od 169 recenzija (macro F1 sa 95% bootstrap intervalom), generisani skriptom
+       <code>scripts/evaluate.py</code>. Detalji i analiza grešaka:
+       <a href="https://github.com/aleksbrstina/serbian-sentiment/blob/main/reports/comparison.md">reports/comparison.md</a>.</p>
+    <div class="table-wrap"><table id="table"></table></div>
+    <p class="muted" style="margin-top:12px">Klasični model najviše greši na recenzijama sa mešovitim sentimentom i ironijom,
+       gde je BERTić znatno bolji. Probajte primer „Film nije loš.“: TF-IDF ga pogrešno vidi kao negativan.</p>
+  </section>
+</main>
+
+<script src="sentiment.js"></script>
+<script>
+(function () {
+  "use strict";
+  const EXAMPLES = [
+    "Odličan film! Gluma je sjajna, a priča me je potpuno osvojila od prvog do poslednjeg kadra.",
+    "Nažalost, film je dosadan, predugačak i traljavo režiran. Šteta vremena.",
+    "Film nije loš.",
+    "Specijalni efekti su impresivni, ali scenario je toliko slab da ni sjajna gluma ne može da spase ovaj film.",
+    "Ово је један од најбољих филмова које сам гледао ове године, топло препоручујем.",
+  ];
+  const LABELS = { positive: "pozitivno", negative: "negativno" };
+  const TOP_K = 12;
+  const $ = (id) => document.getElementById(id);
+  let model = null;
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function render(result) {
+    const pPos = result.probs.positive;
+    const label = result.label;
+    $("label").textContent = LABELS[label] || label;
+    const conf = label === "positive" ? pPos : 1 - pPos;
+    $("confidence").textContent = "verovatnoća " + (100 * conf).toFixed(0) + "%";
+    $("bar").style.width = (100 * pPos).toFixed(1) + "%";
+
+    const ranked = Array.from(result.wordContributions.entries()).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, TOP_K);
+    const top = new Map(ranked);
+    const maxAbs = Math.max(1e-9, ...ranked.map(([, v]) => Math.abs(v)));
+    const parts = result.normalized.split(/([\p{L}\p{N}_]+)/u);
+    $("highlighted").innerHTML = parts.map((part) => {
+      const score = top.get(part.toLowerCase());
+      // Words with less than 10% of the strongest contribution stay unmarked.
+      if (score === undefined || Math.abs(score) < 0.1 * maxAbs) return escapeHtml(part);
+      const alpha = (0.15 + 0.6 * Math.abs(score) / maxAbs).toFixed(2);
+      const color = score > 0 ? "var(--pos)" : "var(--neg)";
+      const tip = (score > 0 ? "ka pozitivnom" : "ka negativnom") + " (" + score.toFixed(3) + ")";
+      return '<mark style="background: rgba(' + color + ', ' + alpha + ')" title="' + tip + '">' + escapeHtml(part) + "</mark>";
+    }).join("");
+    $("result").hidden = false;
+  }
+
+  function renderComparison(meta) {
+    if (!meta || !meta.models) return;
+    const rows = meta.models.map((m) => {
+      const current = m.key === meta.current ? ' class="current"' : "";
+      const note = m.key === meta.current ? " (ovaj demo)" : "";
+      return "<tr" + current + "><td>" + escapeHtml(m.name + note) + '</td><td class="num">' + m.macro_f1.toFixed(3) +
+        " [" + m.ci_low.toFixed(3) + "–" + m.ci_high.toFixed(3) + ']</td><td class="num">' + m.latency_ms.toFixed(0) + " ms</td></tr>";
+    });
+    $("table").innerHTML = '<thead><tr><th>Model</th><th class="num">Macro F1 [95% CI]</th><th class="num">Vreme po recenziji (CPU)</th></tr></thead><tbody>' + rows.join("") + "</tbody>";
+    $("comparison").hidden = false;
+  }
+
+  function analyze() {
+    const text = $("review").value;
+    if (!model) return;
+    if (!text.trim()) { $("status").textContent = "Unesite tekst."; return; }
+    const t0 = performance.now();
+    const result = SentimentModel.predict(model, text);
+    $("status").textContent = "Gotovo za " + (performance.now() - t0).toFixed(0) + " ms.";
+    render(result);
+  }
+
+  for (const ex of EXAMPLES) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = ex;
+    b.title = ex;
+    b.addEventListener("click", () => { $("review").value = ex; analyze(); });
+    $("examples").appendChild(b);
+  }
+  $("analyze").addEventListener("click", analyze);
+  $("review").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) analyze(); });
+
+  fetch("model.json")
+    .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then((m) => {
+      model = m;
+      $("analyze").disabled = false;
+      $("status").textContent = "Model je spreman (Ctrl+Enter za analizu).";
+      renderComparison(m.metadata);
+    })
+    .catch((err) => { $("status").textContent = "Model nije učitan: " + err.message; });
+})();
+</script>
+</body>
+</html>

@@ -2,6 +2,7 @@
 
 [![tests](https://github.com/aleksbrstina/serbian-sentiment/actions/workflows/tests.yml/badge.svg)](https://github.com/aleksbrstina/serbian-sentiment/actions/workflows/tests.yml)
 [![model](https://img.shields.io/badge/🤗%20model-bertic--serbmr--sentiment-yellow)](https://huggingface.co/aleksbrstina/bertic-serbmr-sentiment)
+[![demo](https://img.shields.io/badge/🤗%20demo-Spaces-blue)](https://huggingface.co/spaces/aleksbrstina/serbian-sentiment-demo)
 
 Binary sentiment classification of Serbian movie reviews, comparing three approaches of increasing complexity on **the same data, split, metrics and hardware**:
 
@@ -49,7 +50,9 @@ Error analysis with heuristic tags and 40 manually categorized errors: [`reports
 
 ## Demo
 
-A Gradio app shows all three models side by side, with probabilities, response times, the words that drove the TF-IDF decision and BERTić's attention:
+**Live demo: [huggingface.co/spaces/aleksbrstina/serbian-sentiment-demo](https://huggingface.co/spaces/aleksbrstina/serbian-sentiment-demo).** It runs the TF-IDF + logistic regression model entirely in the browser: the model is exported to JSON (`sentiment.export_static`) and inference is reimplemented in plain JavaScript (`app/static/`), with a test proving it matches scikit-learn. It highlights the words that drove the decision and shows how the model compares with the others. (Hosting a Python Space with all three models requires a paid Hugging Face plan; `python scripts/deploy_space.py --mode gradio` deploys it where that is available.)
+
+The full app shows all three models side by side, with probabilities, response times, the TF-IDF word contributions and BERTić's attention:
 
 ```bash
 make app   # http://127.0.0.1:7860
@@ -128,7 +131,8 @@ src/sentiment/
   predict.py    common Predictor interface and loader
   tracking.py   MLflow helpers
 scripts/        CLI entry points (prepare_data, run_eda, train, evaluate, deploy_space, …)
-app/app.py      Gradio demo
+app/app.py      Gradio demo (all three models)
+app/static/     in-browser demo (HTML + JavaScript, exported TF-IDF model)
 notebooks/      01_eda, 02_error_analysis, colab_train_bertic
 reports/        generated reports and figures (tracked)
 docs/           decisions.md: rationale for every non-trivial choice
