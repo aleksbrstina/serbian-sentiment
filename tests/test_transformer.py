@@ -183,3 +183,14 @@ def test_model_card_contains_metrics():
     card = model_card(summary)
     assert card.startswith("---\nlanguage: sr")
     assert "0.9123" in card and "user/repo" in card and "CC BY-NC-SA" in card
+
+
+def test_word_attention_merges_subwords_and_marks_cut(tiny_model_dir):
+    predictor = TransformerPredictor.load(tiny_model_dir)
+    short = predictor.word_attention("film je odličan")
+    assert [w for w, _ in short] == ["film", "je", "odličan"]
+    assert max(v for _, v in short) == pytest.approx(1.0)
+    long = predictor.word_attention("film je odličan sjajan loš dosadan glumac scena nije film")
+    words = [w for w, _ in long]
+    assert "[…]" in words  # max_length 8 -> 6 content tokens, cut after 3
+    assert words.index("[…]") == 3 and len(words) == 7

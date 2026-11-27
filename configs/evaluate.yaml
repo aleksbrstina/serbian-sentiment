@@ -1,0 +1,33 @@
+# Test-set evaluation of all trained models (scripts/evaluate.py).
+# Every model is loaded through sentiment.predict.load_predictor.
+models:
+  - key: logreg
+    name: TF-IDF + Logistic Regression
+    path: artifacts/classical/logreg
+  - key: linear_svm
+    name: TF-IDF + Linear SVM
+    path: artifacts/classical/linear_svm
+  - key: naive_bayes
+    name: TF-IDF + Complement NB
+    path: artifacts/classical/naive_bayes
+  - key: bilstm
+    name: BiLSTM
+    path: artifacts/bilstm
+  - key: bertic
+    name: BERTić
+    path: artifacts/bertic/model
+    hub_id: aleksbrstina/bertic-serbmr-sentiment   # used when the local copy is missing
+test: data/processed/test.parquet
+train: data/processed/train.parquet         # only for error-tag thresholds
+lexicon: reports/eda/informative_words.csv  # training-split chi-square words
+lexicon_top_k: 30
+output_dir: reports/evaluation
+comparison_path: reports/comparison.md
+readme_path: README.md
+n_bootstrap: 2000
+seed: 42
+latency_samples: 50
+review_sample: 40
+tracking_uri: sqlite:///mlflow.db
+experiment_name: serbian-sentiment
+mlflow_artifact_root: mlruns

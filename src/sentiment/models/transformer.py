@@ -198,6 +198,39 @@ class TransformerPredictor(Predictor):
         tokens = self.tokenizer.convert_ids_to_tokens(enc["input_ids"][0])
         return tokens, weights
 
+    def word_attention(self, text: str, layer: int = -1) -> list[tuple[str, float | None]]:
+        """``[CLS]`` attention merged from subwords into words, scaled to a max of 1.0.
+
+        If the text was truncated head+tail, a ``("[…]", None)`` entry marks exactly
+        where the middle was cut out.
+
+        Args:
+            text: Input text.
+            layer: Transformer layer (default: last).
+
+        Returns:
+            ``(word, weight)`` pairs in text order.
+        """
+        tokens, weights = self.attention(text, layer=layer)
+        prefix, suffix = special_token_frame(self.tokenizer)
+        content_tokens = tokens[len(prefix) : len(tokens) - len(suffix)]
+        content_weights = weights[len(prefix) : len(weights) - len(suffix)]
+        budget = self.max_length - len(prefix) - len(suffix)
+        n_full = len(self.tokenizer(text, add_special_tokens=False)["input_ids"])
+        cut_at = budget // 2 if n_full > budget and self.truncation == "head_tail" else None
+
+        words: list[tuple[str, float | None]] = []
+        for i, (token, weight) in enumerate(zip(content_tokens, content_weights, strict=True)):
+            if i == cut_at:
+                words.append(("[…]", None))
+            if token.startswith("##") and words and words[-1][1] is not None:
+                word, total = words[-1]
+                words[-1] = (word + token[2:], total + float(weight))
+            else:
+                words.append((token, float(weight)))
+        top = max((w for _, w in words if w is not None), default=1.0) or 1.0
+        return [(w, None if v is None else v / top) for w, v in words]
+
     def save(self, directory: str | Path, metadata: dict[str, Any] | None = None) -> Path:
         """Save model, tokenizer and ``metadata.json``."""
         directory = Path(directory)
